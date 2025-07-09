@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 multiboot = { path = "../multiboot" }
+kernel_shared = { path = "../kernel_shared" }
 
 [lib]
 crate-type = ["staticlib"]

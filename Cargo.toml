@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "kernel",
-    "kernel_loader",
+    "kernel_loader", "kernel_shared",
     "multiboot",
     "std"
 ]

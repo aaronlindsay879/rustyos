@@ -3,6 +3,7 @@
 
 use core::panic::PanicInfo;
 
+use kernel_shared::{io::serial, serial_println};
 use multiboot::{multiboot_header, prelude::*};
 
 multiboot_header! {
@@ -23,6 +24,11 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[unsafe(no_mangle)]
 extern "C" fn loader_main() {
+    unsafe {
+        serial::COM1.lock().init();
+    }
+    serial_println!("hello chat :3");
+
     let textbuffer = 0xB8000 as *mut u32;
 
     unsafe {
