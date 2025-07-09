@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "kernel",
+    "kernel_loader",
+    "multiboot",
+    "std"
+]
+resolver = "3"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+strip = true
