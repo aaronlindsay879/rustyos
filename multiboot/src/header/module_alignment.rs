@@ -2,7 +2,7 @@
 
 use std::cursor::Cursor;
 
-use crate::header::{flags::Flags, tag::Tag};
+use crate::header::{flags::Flags, header_tag::HeaderTag};
 
 /// Informs multiboot2 that modules must be paged aligned.
 ///
@@ -12,7 +12,7 @@ pub struct ModuleAlignment {
     pub flags: Flags,
 }
 
-impl const Tag for ModuleAlignment {
+impl const HeaderTag for ModuleAlignment {
     const TYPE: u16 = 6;
 
     fn write_to_buffer(&self, buffer: &mut Cursor) {

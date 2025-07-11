@@ -4,7 +4,7 @@ use std::cursor::Cursor;
 
 /// A header tag which can be written into the multiboot2 header
 #[const_trait]
-pub trait Tag {
+pub trait HeaderTag {
     /// Numeric type of the tag
     const TYPE: u16;
 

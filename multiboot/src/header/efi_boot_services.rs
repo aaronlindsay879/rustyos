@@ -2,7 +2,7 @@
 
 use std::cursor::Cursor;
 
-use crate::header::{flags::Flags, tag::Tag};
+use crate::header::{flags::Flags, header_tag::HeaderTag};
 
 /// Informs multiboot2 that payload supports starting without terminating boot services.
 ///
@@ -12,7 +12,7 @@ pub struct EfiBootServices {
     pub flags: Flags,
 }
 
-impl const Tag for EfiBootServices {
+impl const HeaderTag for EfiBootServices {
     const TYPE: u16 = 7;
 
     fn write_to_buffer(&self, buffer: &mut Cursor) {

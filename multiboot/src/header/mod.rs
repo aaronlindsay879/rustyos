@@ -2,7 +2,7 @@
 
 use std::cursor::Cursor;
 
-use crate::prelude::Tag;
+use crate::prelude::HeaderTag;
 
 pub mod address;
 pub mod console_flags;
@@ -11,10 +11,10 @@ pub mod efi_boot_services;
 pub mod entry_address;
 pub mod flags;
 pub mod framebuffer;
+pub mod header_tag;
 pub mod information_request;
 pub mod module_alignment;
 pub mod relocatable;
-pub mod tag;
 
 /// Struct to build a multiboot2 compliant header, by writing tags to an internal buffer which is then emitted as an
 /// array using [HeaderBuilder::as_bytes()]
@@ -65,7 +65,7 @@ impl HeaderBuilder {
     }
 
     /// Writes a given tag to the multiboot header
-    pub const fn write_tag(&mut self, tag: &impl ~const Tag) -> &mut Self {
+    pub const fn write_tag(&mut self, tag: &impl ~const HeaderTag) -> &mut Self {
         tag.write_tag(&mut self.out_cursor);
 
         self

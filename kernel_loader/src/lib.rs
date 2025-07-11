@@ -18,16 +18,22 @@ multiboot_header! {
 }
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    serial_println!("{}", info);
     loop {}
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn loader_main() {
+extern "C" fn loader_main(bootinfo_addr: *const u32) {
     unsafe {
         serial::COM1.lock().init();
     }
-    serial_println!("hello chat :3");
+
+    let bootinfo = unsafe { BootInfo::new(bootinfo_addr).unwrap() };
+    serial_println!("{:#X?}", bootinfo);
+
+    let meminfo = bootinfo.memory_map.unwrap();
+    serial_println!("{}", meminfo);
 
     let textbuffer = 0xB8000 as *mut u32;
 

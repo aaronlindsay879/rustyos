@@ -2,7 +2,7 @@
 
 use std::cursor::Cursor;
 
-use crate::header::{flags::Flags, tag::Tag};
+use crate::header::{flags::Flags, header_tag::HeaderTag};
 
 /// Preference of where to load image within the allowable range.
 #[repr(u32)]
@@ -32,7 +32,7 @@ pub struct Relocatable {
     pub preference: LocationPreference,
 }
 
-impl const Tag for Relocatable {
+impl const HeaderTag for Relocatable {
     const TYPE: u16 = 10;
 
     fn write_to_buffer(&self, buffer: &mut Cursor) {

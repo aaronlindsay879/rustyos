@@ -1,6 +1,6 @@
 //! A cursor to allow writing into a buffer while maintaining position.
 
-use core::marker::PhantomData;
+use core::{ffi::CStr, marker::PhantomData};
 
 /// Wrapper type to support sequential writing operations to a backing buffer type, while storing
 /// current offset within it.
@@ -15,13 +15,13 @@ pub struct Cursor<'a> {
     phantom: PhantomData<&'a [u8]>,
 }
 
-/// Helper macro to construct nearly identical write_[type] functions for the cursor type
-macro_rules! write_functions {
-    ($($name:ident: $type:ty),*) => {
+/// Helper macro to construct nearly identical write_[type] and read_[type] functions for the cursor type
+macro_rules! impl_functions {
+    ($($type:ty => $write:ident, $read:ident),*) => {
         $(
             #[doc = concat!("Attempts to write a ", stringify!($type), " to backing buffer, ")]
             #[doc = "returning the number of bytes written (0 if capacity reached)."]
-            pub const fn $name(&mut self, value: $type) -> usize {
+            pub const fn $write(&mut self, value: $type) -> usize {
                 const SIZE: usize = core::mem::size_of::<$type>();
 
                 if self.offset + SIZE >= self.capacity {
@@ -42,6 +42,35 @@ macro_rules! write_functions {
                 self.offset += SIZE;
 
                 SIZE
+            }
+
+
+            #[doc = concat!("Attempts to read a ", stringify!($type), " from the backing buffer. ")]
+            pub const fn $read(&mut self) -> Option<$type> {
+                const SIZE: usize = core::mem::size_of::<$type>();
+
+                if self.offset + SIZE >= self.capacity {
+                    return None;
+                }
+
+                let mut out = core::mem::MaybeUninit::uninit();
+
+                // SAFETY:
+                // backing is safe to read for SIZE bytes, since we check above
+                // out is safe to write for SIZE bytes, simple value type
+                // data is inherently aligned
+                unsafe {
+                    core::ptr::copy(
+                        self.backing.add(self.offset),
+                        out.as_mut_ptr() as *mut u8,
+                        SIZE,
+                    );
+
+                    self.offset += SIZE;
+
+                    // SAFETY: we know out is initialised because we write to it above
+                    Some(out.assume_init())
+                }
             }
         )*
     }
@@ -70,16 +99,31 @@ impl Cursor<'_> {
 }
 
 impl<'a> Cursor<'a> {
-    write_functions! {
-        write_u8: u8,
-        write_u16: u16,
-        write_u32: u32,
-        write_u64: u64,
+    impl_functions! {
+        u8 => write_u8, read_u8,
+        u16 => write_u16, read_u16,
+        u32 => write_u32, read_u32,
+        u64 => write_u64, read_u64,
 
-        write_i8: i8,
-        write_i16: i16,
-        write_i32: i32,
-        write_i64: i64
+        i8 => write_i8, read_i8,
+        i16 => write_i16, read_i16,
+        i32 => write_i32, read_i32,
+        i64 => write_i64, read_i64
+    }
+
+    /// Reads a slice from buffer, advancing offset by `len`
+    ///
+    /// ## Safety
+    /// Caller must guarantee that `self.backing[self.offset .. self.offset + len]` is a valid slice
+    pub const unsafe fn read_slice(&mut self, len: usize) -> Option<&'static [u8]> {
+        if self.offset + len > self.capacity {
+            return None;
+        }
+
+        let slice = unsafe { core::slice::from_raw_parts(self.backing.add(self.offset), len) };
+        self.offset += len;
+
+        Some(slice)
     }
 
     /// Attempts to write an entire slice to the cursor, returning number of bytes successfully written.
@@ -100,9 +144,41 @@ impl<'a> Cursor<'a> {
         value.len()
     }
 
+    /// Reads a CStr from buffer, incrementing the offset by the length of the string
+    ///
+    /// ## Safety
+    /// The caller **must** know that the buffer contains a null-terminated string in the selection location.
+    pub const unsafe fn read_cstr(&mut self, len: usize) -> Option<&'static CStr> {
+        if self.offset + len > self.capacity {
+            return None;
+        }
+
+        unsafe {
+            let slice = core::slice::from_raw_parts(self.backing.add(self.offset), len);
+            self.offset += len;
+
+            Some(CStr::from_bytes_with_nul_unchecked(slice))
+        }
+    }
+
+    /// Gets a pointer to the backing array, starting at current offset
+    pub const fn as_ptr(&self) -> *const u8 {
+        unsafe { self.backing.add(self.offset) }
+    }
+
     /// Gets the current offset within the backing data.
     pub const fn offset(&self) -> usize {
         self.offset
+    }
+
+    /// Increments the offset by `value`
+    pub const fn increment_offset(&mut self, value: usize) {
+        self.offset += value;
+    }
+
+    /// Aligns the offset to the next `alignment`, which must be a power of 2
+    pub const fn align_offset(&mut self, alignment: usize) {
+        self.offset = super::align_up(self.offset, alignment);
     }
 
     /// Resets the offset back to the start of the backing data.

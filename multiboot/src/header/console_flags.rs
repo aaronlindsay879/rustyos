@@ -2,7 +2,7 @@
 
 use std::cursor::Cursor;
 
-use crate::header::{flags::Flags, tag::Tag};
+use crate::header::{flags::Flags, header_tag::HeaderTag};
 
 /// Specifies information about the requested and support consoles.
 ///
@@ -16,7 +16,7 @@ pub struct ConsoleFlags {
     pub ega_text_support: bool,
 }
 
-impl const Tag for ConsoleFlags {
+impl const HeaderTag for ConsoleFlags {
     const TYPE: u16 = 4;
 
     fn write_to_buffer(&self, buffer: &mut Cursor) {

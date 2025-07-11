@@ -2,7 +2,7 @@
 
 use std::cursor::Cursor;
 
-use crate::header::{flags::Flags, tag::Tag};
+use crate::header::{flags::Flags, header_tag::HeaderTag};
 
 /// Requests a specific memory layout. All addresses in this struct are physical addresses.
 ///
@@ -20,7 +20,7 @@ pub struct Address {
     pub bss_end_addr: u32,
 }
 
-impl const Tag for Address {
+impl const HeaderTag for Address {
     const TYPE: u16 = 2;
 
     fn write_to_buffer(&self, buffer: &mut Cursor) {

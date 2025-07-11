@@ -2,12 +2,12 @@
 
 use std::cursor::Cursor;
 
-use crate::prelude::Tag;
+use crate::prelude::HeaderTag;
 
 /// Dummy tag, only used for ending header
 pub struct DummyTag;
 
-impl const Tag for DummyTag {
+impl const HeaderTag for DummyTag {
     const TYPE: u16 = 0;
 
     fn write_to_buffer(&self, buffer: &mut Cursor<'_>) {

@@ -2,7 +2,7 @@
 
 use std::cursor::Cursor;
 
-use crate::header::{flags::Flags, tag::Tag};
+use crate::header::{flags::Flags, header_tag::HeaderTag};
 
 /// Requests a graphical framebuffer with the specified dimensions.
 ///
@@ -18,7 +18,7 @@ pub struct Framebuffer {
     pub depth: u32,
 }
 
-impl const Tag for Framebuffer {
+impl const HeaderTag for Framebuffer {
     const TYPE: u16 = 5;
 
     fn write_to_buffer(&self, buffer: &mut Cursor) {

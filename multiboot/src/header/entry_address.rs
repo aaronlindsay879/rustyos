@@ -3,7 +3,7 @@
 use core::marker::PhantomData;
 use std::cursor::Cursor;
 
-use crate::header::{flags::Flags, tag::Tag};
+use crate::header::{flags::Flags, header_tag::HeaderTag};
 
 /// Trait to indicate different possible entry address types.
 pub trait EntryAddressType {
@@ -43,7 +43,7 @@ pub struct EntryAddress<E: EntryAddressType> {
     pub _phantom: PhantomData<E>,
 }
 
-impl<E: EntryAddressType> const Tag for EntryAddress<E> {
+impl<E: EntryAddressType> const HeaderTag for EntryAddress<E> {
     const TYPE: u16 = E::TYPE_FIELD;
 
     fn write_to_buffer(&self, buffer: &mut Cursor) {

@@ -2,7 +2,7 @@
 
 use std::cursor::Cursor;
 
-use crate::header::{flags::Flags, tag::Tag};
+use crate::header::{flags::Flags, header_tag::HeaderTag};
 
 /// Requests certain information within the multiboot2 response.
 ///
@@ -14,7 +14,7 @@ pub struct InformationRequest {
     pub requests: &'static [u32],
 }
 
-impl const Tag for InformationRequest {
+impl const HeaderTag for InformationRequest {
     const TYPE: u16 = 1;
 
     fn write_to_buffer(&self, buffer: &mut Cursor<'_>) {
