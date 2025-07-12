@@ -2,9 +2,27 @@
 
 use core::{ffi::CStr, marker::PhantomData};
 
+/// Supports read operations
+pub trait R {}
+
+/// Supports write operations
+pub trait W {}
+
+/// Cursor operation mode
+pub mod mode {
+    /// Read only
+    pub struct R;
+    impl super::R for R {}
+
+    /// Read + Write
+    pub struct RW;
+    impl super::R for RW {}
+    impl super::W for RW {}
+}
+
 /// Wrapper type to support sequential writing operations to a backing buffer type, while storing
 /// current offset within it.
-pub struct Cursor<'a> {
+pub struct Cursor<'a, MODE = mode::RW> {
     /// Backing data structure, typically constructed from a slice
     backing: *mut u8,
     /// Current offset within the backing data
@@ -12,12 +30,15 @@ pub struct Cursor<'a> {
     /// Capacity of backing data
     capacity: usize,
     /// Lifetime information
-    phantom: PhantomData<&'a [u8]>,
+    phantom: PhantomData<(&'a [u8], MODE)>,
 }
 
-/// Helper macro to construct nearly identical write_[type] and read_[type] functions for the cursor type
-macro_rules! impl_functions {
-    ($($type:ty => $write:ident, $read:ident),*) => {
+/// Read only cursor
+pub type CursorR<'a> = Cursor<'a, mode::R>;
+
+/// Helper macro to construct nearly identical write_[type] functions for the cursor type
+macro_rules! impl_writes {
+    ($($type:ty => $write:ident),*) => {
         $(
             #[doc = concat!("Attempts to write a ", stringify!($type), " to backing buffer, ")]
             #[doc = "returning the number of bytes written (0 if capacity reached)."]
@@ -43,8 +64,13 @@ macro_rules! impl_functions {
 
                 SIZE
             }
-
-
+        )*
+    }
+}
+/// Helper macro to construct nearly identical read_[type] functions for the cursor type
+macro_rules! impl_reads {
+    ($($type:ty => $read:ident),*) => {
+        $(
             #[doc = concat!("Attempts to read a ", stringify!($type), " from the backing buffer. ")]
             pub const fn $read(&mut self) -> Option<$type> {
                 const SIZE: usize = core::mem::size_of::<$type>();
@@ -73,42 +99,33 @@ macro_rules! impl_functions {
                 }
             }
         )*
-    }
+    };
 }
 
-impl Cursor<'_> {
+impl<MODE: R> Cursor<'_, MODE> {
     /// Constructs a cursor from the given slice
-    pub const fn from(value: &mut [u8]) -> Self {
+    ///
+    /// ## Safety
+    /// Caller must guarantee cursor is never written to
+    pub const unsafe fn from(value: &[u8]) -> Self {
         Self {
-            backing: value.as_mut_ptr(),
+            backing: value.as_ptr() as *mut u8,
             offset: 0,
             capacity: value.len(),
             phantom: PhantomData,
         }
     }
 
-    /// Constructs a default cursor, with no backing data structure and a capacity of 0
-    pub const fn default() -> Self {
-        Self {
-            backing: core::ptr::null_mut(),
-            offset: 0,
-            capacity: 0,
-            phantom: PhantomData,
-        }
-    }
-}
+    impl_reads! {
+        u8 => read_u8,
+        u16 => read_u16,
+        u32 => read_u32,
+        u64 => read_u64,
 
-impl<'a> Cursor<'a> {
-    impl_functions! {
-        u8 => write_u8, read_u8,
-        u16 => write_u16, read_u16,
-        u32 => write_u32, read_u32,
-        u64 => write_u64, read_u64,
-
-        i8 => write_i8, read_i8,
-        i16 => write_i16, read_i16,
-        i32 => write_i32, read_i32,
-        i64 => write_i64, read_i64
+        i8 => read_i8,
+        i16 => read_i16,
+        i32 => read_i32,
+        i64 => read_i64
     }
 
     /// Reads a slice from buffer, advancing offset by `len`
@@ -124,6 +141,47 @@ impl<'a> Cursor<'a> {
         self.offset += len;
 
         Some(slice)
+    }
+
+    /// Reads a CStr from buffer, incrementing the offset by the length of the string
+    ///
+    /// ## Safety
+    /// The caller **must** know that the buffer contains a null-terminated string in the selection location.
+    pub const unsafe fn read_cstr(&mut self, len: usize) -> Option<&'static CStr> {
+        if self.offset + len > self.capacity {
+            return None;
+        }
+
+        unsafe {
+            let slice = core::slice::from_raw_parts(self.backing.add(self.offset), len);
+            self.offset += len;
+
+            Some(CStr::from_bytes_with_nul_unchecked(slice))
+        }
+    }
+}
+
+impl<MODE: W> Cursor<'_, MODE> {
+    /// Constructs a cursor from the given slice
+    pub const fn from_mut(value: &mut [u8]) -> Self {
+        Self {
+            backing: value.as_mut_ptr(),
+            offset: 0,
+            capacity: value.len(),
+            phantom: PhantomData,
+        }
+    }
+
+    impl_writes! {
+        u8 => write_u8,
+        u16 => write_u16,
+        u32 => write_u32,
+        u64 => write_u64,
+
+        i8 => write_i8,
+        i16 => write_i16,
+        i32 => write_i32,
+        i64 => write_i64
     }
 
     /// Attempts to write an entire slice to the cursor, returning number of bytes successfully written.
@@ -143,24 +201,21 @@ impl<'a> Cursor<'a> {
 
         value.len()
     }
+}
 
-    /// Reads a CStr from buffer, incrementing the offset by the length of the string
-    ///
-    /// ## Safety
-    /// The caller **must** know that the buffer contains a null-terminated string in the selection location.
-    pub const unsafe fn read_cstr(&mut self, len: usize) -> Option<&'static CStr> {
-        if self.offset + len > self.capacity {
-            return None;
-        }
-
-        unsafe {
-            let slice = core::slice::from_raw_parts(self.backing.add(self.offset), len);
-            self.offset += len;
-
-            Some(CStr::from_bytes_with_nul_unchecked(slice))
+impl Cursor<'_> {
+    /// Constructs a default cursor, with no backing data structure and a capacity of 0
+    pub const fn default() -> Self {
+        Self {
+            backing: core::ptr::null_mut(),
+            offset: 0,
+            capacity: 0,
+            phantom: PhantomData,
         }
     }
+}
 
+impl<'a, MODE> Cursor<'a, MODE> {
     /// Gets a pointer to the backing array, starting at current offset
     pub const fn as_ptr(&self) -> *const u8 {
         unsafe { self.backing.add(self.offset) }

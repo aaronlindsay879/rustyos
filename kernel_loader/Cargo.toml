@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+std = { path = "../std" }
+acpi = { path = "../acpi" }
 multiboot = { path = "../multiboot" }
 kernel_shared = { path = "../kernel_shared" }
 

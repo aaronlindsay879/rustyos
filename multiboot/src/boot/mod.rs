@@ -43,7 +43,7 @@ impl BootInfo {
             let total_size = *addr;
             core::slice::from_raw_parts_mut(addr as *mut u8, total_size as usize)
         };
-        let mut cursor = Cursor::from(backing_slice);
+        let mut cursor = Cursor::from_mut(backing_slice);
 
         let _total_size = cursor.read_u32()?;
         let _reserved = cursor.read_u32()?;

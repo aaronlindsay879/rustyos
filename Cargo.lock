@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "acpi"
+version = "0.1.0"
+dependencies = [
+ "std",
+]
+
+[[package]]
 name = "kernel"
 version = "0.1.0"
 
@@ -10,8 +17,10 @@ version = "0.1.0"
 name = "kernel_loader"
 version = "0.1.0"
 dependencies = [
+ "acpi",
  "kernel_shared",
  "multiboot",
+ "std",
 ]
 
 [[package]]

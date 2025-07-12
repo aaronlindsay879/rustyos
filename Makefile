@@ -1,7 +1,7 @@
 AS := nasm
 ASFLAGS := -felf64
 
-PROJDIRS := kernel kernel_loader kernel_shared multiboot std
+PROJDIRS := kernel kernel_loader kernel_shared multiboot std acpi
 
 RUST_SRC_FILES := $(shell find $(PROJDIRS) -type f -name "*.rs")
 

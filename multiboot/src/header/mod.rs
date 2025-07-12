@@ -48,7 +48,7 @@ impl HeaderBuilder {
 
     /// Sets the pointer within the cursor to point at the buffer
     pub const fn set_cursors(&mut self) -> &mut Self {
-        self.out_cursor = Cursor::from(&mut self.out);
+        self.out_cursor = Cursor::from_mut(&mut self.out);
 
         self
     }
