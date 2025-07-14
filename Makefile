@@ -24,6 +24,7 @@ run: $(ISO_FILE)
 				-drive file=$(ISO_FILE),format=raw \
 				-display gtk,show-tabs=on -m 256M \
 				-cpu qemu64-v1,pdpe1gb \
+				-d int -no-reboot \
 				-serial stdio
 
 clean: 

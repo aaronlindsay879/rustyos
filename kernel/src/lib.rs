@@ -8,4 +8,4 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 #[unsafe(no_mangle)]
-pub fn kernel_main() {}
+pub extern "C" fn kernel_main() {}

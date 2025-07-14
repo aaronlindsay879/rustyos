@@ -20,11 +20,15 @@ set_up_page_tables:
 	; 0b10000011 = present + writable + huge
 	mov dword [p3_table], 0x00000000 | 0b10000011
 
-	; also map first 4GiB of physical memory in proper location
+	; also map first 8GiB of physical memory in proper location
 	mov dword [p3_table_phys + 0 * 8], 0x00000000 | 0b10000011
 	mov dword [p3_table_phys + 1 * 8], 0x40000000 | 0b10000011
 	mov dword [p3_table_phys + 2 * 8], 0x80000000 | 0b10000011
 	mov dword [p3_table_phys + 3 * 8], 0xC0000000 | 0b10000011
+	mov dword [p3_table_phys + 4 * 8], 0x100000000 | 0b10000011
+	mov dword [p3_table_phys + 5 * 8], 0x140000000 | 0b10000011
+	mov dword [p3_table_phys + 6 * 8], 0x180000000 | 0b10000011
+	mov dword [p3_table_phys + 7 * 8], 0x1C0000000 | 0b10000011
 
 	ret
 

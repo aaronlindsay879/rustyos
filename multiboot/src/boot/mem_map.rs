@@ -18,6 +18,30 @@ pub struct MemoryMap {
     pub entries: &'static [MemoryMapEntry],
 }
 
+impl MemoryMap {
+    /// Checks if a RAM map entry exists with the given start address
+    pub fn contains_ram_map_at_addr(&self, addr: u64) -> bool {
+        self.entries
+            .iter()
+            .any(|entry| entry.entry_type == MemoryEntryType::RAM && entry.base_addr == addr)
+    }
+
+    /// Whether memory map contains extended memory at 0x00100000
+    pub fn contains_extended_memory_one(&self) -> bool {
+        self.contains_ram_map_at_addr(0x00100000)
+    }
+
+    /// Whether memory map contains extended memory at 0x01000000
+    pub fn contains_extended_memory_two(&self) -> bool {
+        self.contains_ram_map_at_addr(0x01000000)
+    }
+
+    /// Whether memory map contains extended memory at 0x0000000100000000
+    pub fn contains_extended_memory_three(&self) -> bool {
+        self.contains_ram_map_at_addr(0x0000000100000000)
+    }
+}
+
 impl core::fmt::Display for MemoryMap {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         writeln!(
@@ -62,7 +86,7 @@ impl core::fmt::Display for MemoryMapEntry {
 }
 
 /// What type the memory region is
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)]
 #[repr(u32)]
 pub enum MemoryEntryType {

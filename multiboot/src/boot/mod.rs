@@ -1,17 +1,23 @@
 //! Provides functionality for reading and processing the returned multiboot2 information
 
+use core::ffi::CStr;
 use std::cursor::Cursor;
 
 use crate::{
     boot::boot_tag::BootTag,
-    prelude::{BasicMemInfo, BiosBootDevice, BootCommandLine, MemoryMap, RSDPv1, RSDPv2},
+    prelude::{
+        BasicMemInfo, BiosBootDevice, BootCommandLine, ElfSymbols, MemoryMap, Module, RSDPv1,
+        RSDPv2,
+    },
 };
 
 pub mod basic_mem_info;
 pub mod bios_boot_device;
 pub mod boot_command_line;
 pub mod boot_tag;
+pub mod elf_symbols;
 pub mod mem_map;
+pub mod module;
 pub mod rsdp;
 
 /// Returned multiboot2 information
@@ -19,6 +25,10 @@ pub mod rsdp;
 /// https://www.gnu.org/software/grub/manual/multiboot2/multiboot.html#Boot-information-format
 #[derive(Default, Debug)]
 pub struct BootInfo {
+    /// Location of bootinfo within physical memory
+    pub addr: usize,
+    /// Length of bootinfo in bytes
+    pub size: usize,
     /// Basic memory information
     pub basic_mem_info: Option<BasicMemInfo>,
     /// Device the OS image was loaded from
@@ -31,6 +41,10 @@ pub struct BootInfo {
     pub rsdpv1: Option<RSDPv1>,
     /// RSDPv2 tag
     pub rsdpv2: Option<RSDPv2>,
+    /// Array of up to 8 modules
+    pub modules: [Option<Module>; 8],
+    /// Elf symbols of loaded OS image
+    pub elf_symbols: Option<ElfSymbols>,
 }
 
 impl BootInfo {
@@ -45,10 +59,14 @@ impl BootInfo {
         };
         let mut cursor = Cursor::from_mut(backing_slice);
 
-        let _total_size = cursor.read_u32()?;
+        let size = cursor.read_u32()?;
         let _reserved = cursor.read_u32()?;
 
-        let mut info = Self::default();
+        let mut info = BootInfo {
+            addr: addr as usize,
+            size: size as usize,
+            ..Self::default()
+        };
 
         while let Some(tag) = cursor.read_u32() {
             match tag {
@@ -70,6 +88,14 @@ impl BootInfo {
                 RSDPv2::TYPE => {
                     info.rsdpv2 = RSDPv2::read_from_buffer(&mut cursor);
                 }
+                Module::TYPE => {
+                    if let Some(slot) = info.modules.iter_mut().find(|slot| slot.is_none()) {
+                        *slot = Module::read_from_buffer(&mut cursor);
+                    }
+                }
+                ElfSymbols::TYPE => {
+                    info.elf_symbols = ElfSymbols::read_from_buffer(&mut cursor);
+                }
                 _ => {
                     // we don't know this tag, so read another byte for size and skip that many
                     if let Some(size) = cursor.read_u32() {
@@ -84,5 +110,13 @@ impl BootInfo {
         }
 
         Some(info)
+    }
+
+    /// Attempts to find a module with the given string
+    pub fn module(&self, module_str: &'static CStr) -> Option<&Module> {
+        self.modules
+            .iter()
+            .filter_map(|module| module.as_ref())
+            .find(|module| module.module_str == module_str)
     }
 }

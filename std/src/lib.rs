@@ -4,6 +4,7 @@
 #![warn(missing_docs, clippy::missing_docs_in_private_items)]
 
 pub mod cursor;
+pub mod elf;
 pub mod mutex;
 
 /// Align downwards - returns the greatest _x_ with alignment `align`

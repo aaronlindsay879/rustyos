@@ -42,7 +42,8 @@ impl BootTag for RSDPv2 {
     fn read_from_buffer(buffer: &mut Cursor) -> Option<Self> {
         let _size = buffer.read_u32()?;
 
-        let v1_tag = read_rsdpv1(buffer)?;
+        // only read to check checksum
+        let _v1_tag = read_rsdpv1(buffer)?;
 
         let length = buffer.read_u32()?;
         let xsdt_addr = buffer.read_u64()?;
