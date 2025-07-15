@@ -30,8 +30,12 @@ pub struct SectionHeader {
 
 impl SectionHeader {
     /// Returns the name of the header using the provided string table
-    pub fn name(&self, string_header: &Self) -> &'static CStr {
-        let location = string_header.addr as *const i8;
+    pub fn name(&self, string_header: &Self, start_addr: usize) -> &'static CStr {
+        let location = if start_addr == 0 {
+            string_header.addr as usize
+        } else {
+            start_addr + string_header.offset as usize
+        } as *const i8;
 
         unsafe { CStr::from_ptr(location.add(self.section_name as usize)) }
     }
@@ -40,11 +44,21 @@ impl SectionHeader {
     pub fn allocated(&self) -> bool {
         self.flags & 0x2 != 0
     }
+
+    /// Whether section is writable
+    pub fn writable(&self) -> bool {
+        self.flags & 0x1 != 0
+    }
+
+    /// Whether section is executable
+    pub fn executable(&self) -> bool {
+        self.flags & 0x4 != 0
+    }
 }
 
 /// Type of the section
 #[repr(u32)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SectionType {
     /// Unused section header
     Null = 0,

@@ -3,6 +3,7 @@
 use multiboot::prelude::{MemoryEntryType, MemoryMapEntry};
 
 use crate::mem::{
+    PHYS_MEM_OFFSET,
     frame::{FRAME_SIZE, Frame},
     frame_alloc::FrameAllocator,
 };
@@ -125,7 +126,7 @@ pub struct BitmapFrameAlloc {
 }
 
 impl BitmapFrameAlloc {
-    /// Constructs a new bitmap frame allocator, storing the data at `addr`
+    /// Constructs a new bitmap frame allocator, storing the data at `addr` and returning the number of bytes written
     ///
     /// ## Safety
     /// This function uses a **lot** of raw memory operations - both `addr` and `memory_map_entries` must be valid.
@@ -134,7 +135,7 @@ impl BitmapFrameAlloc {
         phys_addr: usize,
         addr: usize,
         memory_map_entries: &'static [MemoryMapEntry],
-    ) -> &'static mut Self {
+    ) -> (&'static mut Self, usize) {
         log::trace!("constructing frame allocator at physical addr 0x{phys_addr:016X}");
 
         use core::ptr::*;
@@ -207,7 +208,7 @@ impl BitmapFrameAlloc {
         );
         bitmap_alloc.block_region(start_frame..=end_frame);
 
-        bitmap_alloc
+        (bitmap_alloc, write_addr.addr() - addr)
     }
 
     /// Finds the first free frame, returning the region it lies in and the index within that region if it exists
@@ -300,6 +301,14 @@ impl FrameAllocator for BitmapFrameAlloc {
 
     fn deallocate_frame(&mut self, frame: Frame) {
         let (region, index) = self.find_frame_index(frame).unwrap();
+
+        #[cfg(feature = "ZERO_OUT_FREED_MEMORY")]
+        {
+            let addr = frame.start_address() | PHYS_MEM_OFFSET;
+
+            log::trace!("zeroing memory at {addr:#X}");
+            unsafe { core::ptr::write_bytes(addr as *mut u8, 0, FRAME_SIZE) };
+        }
 
         region.unset_bit(index);
     }

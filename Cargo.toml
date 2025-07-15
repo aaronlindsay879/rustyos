@@ -1,7 +1,9 @@
 [workspace]
-members = [ "acpi",
+members = [
+    "acpi",
     "kernel",
-    "kernel_loader", "kernel_shared",
+    "kernel_loader",
+    "kernel_shared",
     "multiboot",
     "std"
 ]

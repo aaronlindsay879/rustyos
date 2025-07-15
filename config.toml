@@ -1,0 +1,3 @@
+[kernel_shared]
+# memory is zeroed when it is freed to prevent data leakage at a minor performance cost
+ZERO_OUT_FREED_MEMORY = false

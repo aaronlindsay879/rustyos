@@ -28,6 +28,16 @@ SECTIONS
 		*(.data .data.*)
 	}
 
+    .got BLOCK(4K) : ALIGN(4K)
+    {
+        *(.got)
+    }
+
+    .got.plt BLOCK(4K) : ALIGN(4K)
+    {
+        *(.got.plt)
+    }
+
 	.eh_frame BLOCK(4K) : ALIGN(4K)
 	{
 		*(.eh_frame)

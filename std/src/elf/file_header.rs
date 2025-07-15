@@ -1,5 +1,7 @@
 //! Information about an ELF file
 
+use crate::elf::section_header::SectionHeader;
+
 /// ELF file identifier
 #[repr(C, packed)]
 #[derive(Debug)]
@@ -58,7 +60,10 @@ pub struct FileHeader {
 
 impl FileHeader {
     /// Returns the file header at given address, if the magic value present is correct
-    pub fn from_addr(addr: usize) -> Option<&'static FileHeader> {
+    ///
+    /// ## Safety
+    /// `addr` must be a valid elf file header
+    pub unsafe fn from_addr(addr: usize) -> Option<&'static FileHeader> {
         let header = unsafe { &*(addr as *const FileHeader) };
 
         if header.identifier.magic == *b"\x7FELF" {
@@ -66,5 +71,22 @@ impl FileHeader {
         } else {
             None
         }
+    }
+
+    /// Returns the slice of section headers
+    pub fn section_headers(&self) -> &[SectionHeader] {
+        let data_ptr = self as *const FileHeader as *const u8;
+
+        unsafe {
+            core::slice::from_raw_parts(
+                data_ptr.add(self.shoff as usize) as *const SectionHeader,
+                self.shnum as usize,
+            )
+        }
+    }
+
+    /// Returns the string section header
+    pub fn string_header(&self) -> &SectionHeader {
+        &self.section_headers()[self.shstrndx as usize]
     }
 }
