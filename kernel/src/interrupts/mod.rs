@@ -109,8 +109,14 @@ pub fn init(madt_table: &Madt) {
 
     // disable 8259 PIC
     unsafe {
-        // make sure to write masks _before_ enabling PIC, so no interrupts get through
+        // disable all 8259 PIC interrupts by fully masking
         PICS.lock().write_masks(0xFF, 0xFF);
+
+        // even though we're disabling the 8259s with the masking above, we still need to initialise them
+        // in order to remap correctly.
+        //
+        // this is important so that if any spurious interrupts are generated, they are mapped to correct
+        // interrupts instead of CPU assuming they are exceptions.
         PICS.lock().init();
     }
     log::trace!("\t* 8259 PICs disabled");
