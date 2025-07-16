@@ -5,10 +5,15 @@ edition = "2024"
 
 [dependencies]
 log = "0.4.27"
+bitflags = "2.9.1"
 kernel_shared = { path = "../kernel_shared" }
 std = { path = "../std" }
 acpi = { path = "../acpi" }
 multiboot = { path = "../multiboot" }
+
+[dependencies.lazy_static]
+version = "1.5.0"
+features = ["spin_no_std"]
 
 [lib]
 crate-type = ["staticlib"]

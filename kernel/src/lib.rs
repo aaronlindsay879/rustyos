@@ -1,12 +1,23 @@
+#![feature(abi_x86_interrupt)]
 #![no_std]
 
-use core::panic::PanicInfo;
+mod gdt;
+mod interrupts;
+mod mem;
 
-use acpi::tables::{
-    fixed::{madt::Madt, rsdt::Rsdt},
-    header::signature_at_addr,
+use core::{
+    panic::PanicInfo,
+    sync::atomic::{AtomicBool, Ordering},
 };
-use kernel_shared::{logger::Logger, mem::PHYS_MEM_OFFSET};
+
+use acpi::tables::fixed::{madt::Madt, rsdt::Rsdt};
+use kernel_shared::{
+    logger::Logger,
+    mem::{
+        PHYS_MEM_OFFSET, frame_alloc::bitmap::BitmapFrameAlloc,
+        paging::active_table::ActivePageTable,
+    },
+};
 use multiboot::prelude::BootInfo;
 
 static LOGGER: Logger = Logger::new(log::LevelFilter::Trace);
@@ -19,46 +30,48 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main(bootinfo_addr: usize, loader_start: usize, loader_end: usize) {
-    LOGGER.init().expect("failed to init logger");
-    log::info!("entered kernel_main");
+    // bootinfo is only valid for this scope
+    {
+        // it is not mapped at lower address anymore, so must mask to access from physical memory mapping
+        let bootinfo_addr = bootinfo_addr | PHYS_MEM_OFFSET;
+        let bootinfo = unsafe { BootInfo::new(bootinfo_addr as *const u32) }.unwrap();
 
-    // it is not mapped at lower address anymore, so must mask to access from physical memory mapping
-    let bootinfo_addr = bootinfo_addr | PHYS_MEM_OFFSET;
-    let bootinfo = unsafe { BootInfo::new(bootinfo_addr as *const u32) }.unwrap();
-
-    // now find acpi root table
-    let rsdt_addr = bootinfo.rsdpv1.as_ref().unwrap().rsdt_addr as usize;
-    log::trace!("ACPI RSDT table at 0x{rsdt_addr:08X}");
-
-    let rsdt_table = unsafe { Rsdt::<u32>::from_addr(rsdt_addr | PHYS_MEM_OFFSET) }.unwrap();
-
-    // and loop through other tables
-    for table_addr in (0..rsdt_table.num_addresses).map(|i| rsdt_table.table(i).unwrap() as usize) {
-        let table_addr = table_addr | PHYS_MEM_OFFSET;
-        let signature = unsafe { signature_at_addr(table_addr) };
-
-        log::trace!(
-            "ACPI table at 0x{:X} with signature `{}`",
-            table_addr,
-            unsafe { core::str::from_utf8_unchecked(&signature) }
-        );
-
-        #[allow(clippy::single_match)]
-        match signature {
-            Madt::SIGNATURE => {
-                let madt = unsafe { Madt::from_addr(table_addr).unwrap() };
-
-                for i in 0.. {
-                    if let Some(_field) = madt.get_table_entry(i) {
-                        log::trace!("{_field:#?}");
-                    } else {
-                        break;
-                    }
-                }
-            }
-            _ => {}
-        }
+        init(&bootinfo, loader_start, loader_end);
     }
 
     kernel_shared::x86::halt()
+}
+
+fn init(
+    bootinfo: &BootInfo,
+    loader_start: usize,
+    loader_end: usize,
+) -> Option<(&'static mut BitmapFrameAlloc, ActivePageTable)> {
+    // prevents being called twice
+    static INIT_CALLED: AtomicBool = AtomicBool::new(false);
+
+    if INIT_CALLED.swap(true, Ordering::Relaxed) {
+        panic!("init must only be called once")
+    }
+
+    LOGGER.init().expect("failed to init logger");
+    log::info!("entered kernel_main");
+
+    // initialise memory
+    let (frame_alloc, page_table) = mem::init(loader_start, loader_end);
+
+    // now find acpi root table
+    let rsdt_addr = bootinfo.rsdpv1.as_ref()?.rsdt_addr as usize | PHYS_MEM_OFFSET;
+    log::trace!("ACPI RSDT table at {rsdt_addr:#X}");
+
+    let rsdt_table = unsafe { Rsdt::<u32>::from_addr(rsdt_addr) }?;
+    let madt_table = rsdt_table.find_table(&Madt::SIGNATURE, PHYS_MEM_OFFSET)?;
+    log::trace!("ACPI MADT table at {madt_table:#X}");
+
+    let madt = unsafe { Madt::from_addr(madt_table)? };
+
+    gdt::init();
+    interrupts::init(&madt);
+
+    Some((frame_alloc, page_table))
 }

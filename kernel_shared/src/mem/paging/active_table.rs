@@ -8,7 +8,7 @@ use crate::{
         mapper::Mapper,
         table::{Level4, Table},
     },
-    x86::CR3,
+    x86::registers::CR3,
 };
 
 /// The active, loaded L4 page table

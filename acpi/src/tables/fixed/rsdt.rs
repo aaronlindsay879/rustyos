@@ -53,13 +53,14 @@ where
     }
 
     /// Attempts to find the table with the given signature, returning pointer to start of table if it exists
-    pub fn find_table(&self, signature: &[u8]) -> Option<PTR> {
+    pub fn find_table(&self, signature: &[u8], mem_mask: usize) -> Option<usize> {
         let signature: [u8; 4] = signature.try_into().ok()?;
 
         for i in 0..self.num_addresses {
-            let table_addr = self.table(i).unwrap();
+            let table_addr: usize = self.table(i).unwrap().try_into().ok()?;
+            let table_addr = table_addr | mem_mask;
 
-            let (table, _) = unsafe { Header::from_addr(table_addr.try_into().ok()?) }.unwrap();
+            let (table, _) = unsafe { Header::from_addr(table_addr)? };
 
             if table.signature == signature {
                 return Some(table_addr);

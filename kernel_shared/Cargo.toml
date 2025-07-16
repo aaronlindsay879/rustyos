@@ -7,6 +7,7 @@ edition = "2024"
 paste = "1.0.15"
 log = "0.4.27"
 bitflags = "2.9.1"
+bit_field = "0.10.2"
 std = { path = "../std" }
 multiboot = { path = "../multiboot" }
 

@@ -3,7 +3,6 @@
 use multiboot::prelude::{MemoryEntryType, MemoryMapEntry};
 
 use crate::mem::{
-    PHYS_MEM_OFFSET,
     frame::{FRAME_SIZE, Frame},
     frame_alloc::FrameAllocator,
 };
@@ -211,6 +210,14 @@ impl BitmapFrameAlloc {
         (bitmap_alloc, write_addr.addr() - addr)
     }
 
+    /// Returns the bitmap frame allocator which has been constructed at the given address
+    ///
+    /// ## Safety
+    /// `address` **must** be a valid frame allocator
+    pub unsafe fn from_address(address: usize) -> &'static mut Self {
+        unsafe { &mut *(address as *mut BitmapFrameAlloc) }
+    }
+
     /// Finds the first free frame, returning the region it lies in and the index within that region if it exists
     fn first_free_frame(&mut self) -> Option<(&mut BitmapRegion, usize)> {
         let mut region = self.first_region;
@@ -304,7 +311,7 @@ impl FrameAllocator for BitmapFrameAlloc {
 
         #[cfg(feature = "ZERO_OUT_FREED_MEMORY")]
         {
-            let addr = frame.start_address() | PHYS_MEM_OFFSET;
+            let addr = frame.start_address() | crate::mem::PHYS_MEM_OFFSET;
 
             log::trace!("zeroing memory at {addr:#X}");
             unsafe { core::ptr::write_bytes(addr as *mut u8, 0, FRAME_SIZE) };

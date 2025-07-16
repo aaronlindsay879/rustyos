@@ -6,6 +6,7 @@
 #![feature(let_chains)]
 #![feature(ptr_metadata)]
 #![feature(iter_intersperse)]
+#![feature(abi_x86_interrupt)]
 
 pub mod io;
 pub mod logger;

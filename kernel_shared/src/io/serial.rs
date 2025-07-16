@@ -23,6 +23,8 @@ pub mod ports {
 
 pub use ports::*;
 
+use crate::x86::without_interrupts;
+
 /// Waits until `self` contains the OUTPUT_EMPTY flag
 macro_rules! wait_for_output_empty {
     ($self:expr) => {
@@ -171,10 +173,12 @@ impl LineStatusFlags {
 #[doc(hidden)]
 pub fn _print(args: core::fmt::Arguments) {
     use core::fmt::Write;
-    // TODO: make sure interrupts are disabled while this occurs
-    COM1.lock()
-        .write_fmt(args)
-        .expect("Printing to serial failed");
+
+    without_interrupts(|| {
+        COM1.lock()
+            .write_fmt(args)
+            .expect("Printing to serial failed")
+    });
 }
 
 /// Prints to the host through the serial interface.
