@@ -1,5 +1,5 @@
 global start, p4_table, p3_table, p3_table_phys
-extern check_multiboot, check_cpuid, check_long_mode, check_huge_pages, set_up_page_tables, enable_paging, long_mode_start
+extern check_multiboot, check_cpuid, check_long_mode, check_huge_pages, set_up_page_tables, enable_paging, long_mode_start, check_lapic, check_x2apic
 
 section .bss
 align 4096
@@ -50,6 +50,7 @@ start:
     call check_cpuid
     call check_long_mode
     call check_huge_pages
+    call check_lapic
 
     ; set up paging
     call set_up_page_tables

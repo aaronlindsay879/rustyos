@@ -1,8 +1,9 @@
+mod ioapic;
+mod lapic;
 mod pic_8259;
+mod timers;
 
-use std::mutex::Mutex;
-
-use acpi::tables::fixed::madt::Madt;
+use acpi::tables::fixed::{hpet::Hpet, madt::Madt};
 use bitflags::bitflags;
 use kernel_shared::x86::{
     enable_interrupts, exception::ExceptionStackFrame, halt, idt::InterruptDescriptorTable,
@@ -10,9 +11,10 @@ use kernel_shared::x86::{
 };
 use lazy_static::lazy_static;
 
-use crate::{gdt, interrupts::pic_8259::ChainedPics};
-
-pub static PICS: Mutex<ChainedPics> = Mutex::new(unsafe { ChainedPics::new(32, 40) });
+use crate::{
+    gdt,
+    interrupts::{lapic::LAPIC, pic_8259::PICS},
+};
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -29,6 +31,8 @@ lazy_static! {
                 .set(double_fault)
                 .set_ist_index(gdt::DOUBLE_FAULT_IST_INDEX);
         }
+
+        idt[0x20].set(timer_interrupt_handler);
 
         idt
     };
@@ -86,6 +90,12 @@ extern "x86-interrupt" fn page_fault_handler(stack_frame: ExceptionStackFrame, e
     halt();
 }
 
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: ExceptionStackFrame) {
+    log::trace!("timer interrupt.");
+
+    LAPIC.lock().get_mut().unwrap().end_of_interrupt();
+}
+
 extern "x86-interrupt" fn general_protection_fault_handler(
     stack_frame: ExceptionStackFrame,
     error_code: u64,
@@ -101,7 +111,7 @@ extern "x86-interrupt" fn general_protection_fault_handler(
     halt();
 }
 
-pub fn init(madt_table: &Madt) {
+pub fn init(madt_table: &Madt, hpet_table: &Hpet) {
     log::trace!("initialising interrupts");
 
     IDT.load();
@@ -121,17 +131,16 @@ pub fn init(madt_table: &Madt) {
     }
     log::trace!("\t* 8259 PICs disabled");
 
-    for i in 0.. {
-        let field = madt_table.get_table_entry(i);
+    lapic::init(madt_table);
+    log::trace!("\t* LAPIC enabled");
 
-        match field {
-            Some(field) => log::trace!("\n{field:#?}"),
-            None => break,
-        }
-    }
+    ioapic::init(madt_table);
+    log::trace!("\t* IOAPIC programmed");
+
+    timers::init(hpet_table);
+    log::trace!("\t* timers programmed");
 
     enable_interrupts();
     log::trace!("\t* enabled interrupts");
-
     log::trace!("interrupts initialised");
 }

@@ -2,6 +2,7 @@ global check_multiboot:function
 global check_cpuid:function
 global check_long_mode:function
 global check_huge_pages:function
+global check_lapic:function
 
 section .data
 bits 32
@@ -10,6 +11,7 @@ bits 32
     no_longmode_error: db "NO LONGMODE", 0
     no_pse_error: db "NO PSE (2MiB pages)", 0
     no_pdpe_error: db "NO PDPE1GB (1GiB pages)", 0
+    no_lapic_error: db "NO LOCAL APIC SUPPORT", 0
 
 section .text
 bits 32
@@ -128,4 +130,17 @@ check_huge_pages:
     jmp error
 .no_pdpe:
     mov eax, no_pdpe_error
+    jmp error
+
+; check that we have local APIC support
+check_lapic:
+    mov eax, 0x1
+    cpuid
+
+    test edx, 1 << 9
+    jz .no_lapic
+
+    ret
+.no_lapic:
+    mov eax, no_lapic_error
     jmp error

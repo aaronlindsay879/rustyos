@@ -10,7 +10,7 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use acpi::tables::fixed::{madt::Madt, rsdt::Rsdt};
+use acpi::tables::fixed::{hpet::Hpet as HpetTable, madt::Madt, rsdt::Rsdt};
 use kernel_shared::{
     logger::Logger,
     mem::{
@@ -31,13 +31,13 @@ fn panic(info: &PanicInfo) -> ! {
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main(bootinfo_addr: usize, loader_start: usize, loader_end: usize) {
     // bootinfo is only valid for this scope
-    {
+    let (_frame_alloc, _active_page_table) = {
         // it is not mapped at lower address anymore, so must mask to access from physical memory mapping
         let bootinfo_addr = bootinfo_addr | PHYS_MEM_OFFSET;
         let bootinfo = unsafe { BootInfo::new(bootinfo_addr as *const u32) }.unwrap();
 
-        init(&bootinfo, loader_start, loader_end);
-    }
+        init(&bootinfo, loader_start, loader_end).unwrap()
+    };
 
     kernel_shared::x86::halt()
 }
@@ -65,13 +65,17 @@ fn init(
     log::trace!("ACPI RSDT table at {rsdt_addr:#X}");
 
     let rsdt_table = unsafe { Rsdt::<u32>::from_addr(rsdt_addr) }?;
+
     let madt_table = rsdt_table.find_table(&Madt::SIGNATURE, PHYS_MEM_OFFSET)?;
     log::trace!("ACPI MADT table at {madt_table:#X}");
-
     let madt = unsafe { Madt::from_addr(madt_table)? };
 
+    let hpet_table = rsdt_table.find_table(&HpetTable::SIGNATURE, PHYS_MEM_OFFSET)?;
+    log::trace!("ACPI HPET table at {hpet_table:#X}");
+    let hpet = unsafe { HpetTable::from_addr(hpet_table)? };
+
     gdt::init();
-    interrupts::init(&madt);
+    interrupts::init(&madt, &hpet);
 
     Some((frame_alloc, page_table))
 }

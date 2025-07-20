@@ -3,6 +3,7 @@
 pub mod descriptor_table_pointer;
 pub mod exception;
 pub mod gdt;
+pub mod hardware;
 pub mod idt;
 pub mod registers;
 pub mod segment_selector;

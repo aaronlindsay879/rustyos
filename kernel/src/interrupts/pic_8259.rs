@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use std::mutex::Mutex;
+
 use kernel_shared::io::port::Port;
 
 macro_rules! intersperse {
@@ -18,6 +20,8 @@ macro_rules! intersperse {
         }
     };
 }
+
+pub static PICS: Mutex<ChainedPics> = Mutex::new(unsafe { ChainedPics::new(32, 40) });
 
 const CMD_INIT: u8 = 0x11;
 const CMD_END_OF_INTERRUPT: u8 = 0x20;

@@ -45,7 +45,7 @@ macro_rules! impl_writes {
             pub const fn $write(&mut self, value: $type) -> usize {
                 const SIZE: usize = core::mem::size_of::<$type>();
 
-                if self.offset + SIZE >= self.capacity {
+                if self.offset + SIZE > self.capacity {
                     return 0;
                 }
 
@@ -75,7 +75,7 @@ macro_rules! impl_reads {
             pub const fn $read(&mut self) -> Option<$type> {
                 const SIZE: usize = core::mem::size_of::<$type>();
 
-                if self.offset + SIZE >= self.capacity {
+                if self.offset + SIZE > self.capacity {
                     return None;
                 }
 
