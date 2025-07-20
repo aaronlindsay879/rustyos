@@ -22,7 +22,7 @@ pub fn init(hpet_table: &HpetTable) {
     let ticks_required = DESIRED_TIME.as_femtoseconds() as u64 / clock_period_fs;
 
     timer
-        .set_interrupt_routing(0)
+        .set_interrupt_routing(2)
         .allow_accumulator_write()
         .set_timer_periodic(true)
         .set_interrupt_enabled(true);
